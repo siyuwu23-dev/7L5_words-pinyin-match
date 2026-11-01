@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>字音连连看 - 活力版</title>
+    <style>
+        :root {
+            --primary: #8B5CF6;
+            --secondary: #F472B6;
+            --bg-gradient: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            --card-bg: #FFFFFF;
+            --card-hover: #FDF4FF;
+            --card-selected: #EDE9FE;
+            --text: #374151;
+            --danger: #FB7185;
+            --success: #34D399;
+        }
+        
+        * { box-sizing: border-box; }
+        
+        body {
+            font-family: 'Comic Sans MS', 'Nunito', 'Segoe UI', sans-serif;
+            background: var(--bg-gradient);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .game-header {
+            text-align: center;
+            margin-bottom: 20px;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        h2 {
+            color: #4C1D95;
+            font-size: 32px;
+            margin: 10px 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 20px;
+            font-weight: bold;
+            margin-top: 15px;
+            padding: 15px 25px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 20px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.05);
+            border: 2px solid white;
+        }
+
+        .score-box { color: var(--primary); }
+
+        .hearts-box {
+            display: flex;
+            gap: 5px;
+            font-size: 24px;
+        }
+
+        .heart { transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .heart.active { animation: heartbeat 1.5s infinite alternate; }
+        .heart.lost { filter: grayscale(100%) opacity(0.4); transform: scale(0.8); }
+
+        @keyframes heartbeat {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.1); }
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            max-width: 500px;
+            width: 100%;
+            perspective: 1000px;
+        }
+
+        .card {
+            aspect-ratio: 1;
+            background-color: var(--card-bg);
+            border: 3px solid #E5E7EB;
+            border-radius: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            font-weight: 800;
+            color: var(--text);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+            user-select: none;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            border-color: var(--secondary);
+            box-shadow: 0 10px 15px rgba(244, 114, 182, 0.2);
+            background-color: var(--card-hover);
+        }
+
+        .card.selected {
+            background-color: var(--card-selected);
+            border-color: var(--primary);
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(139, 92, 246, 0.4);
+            color: var(--primary);
+        }
+
+        .card.error {
+            background-color: var(--danger);
+            color: white;
+            border-color: var(--danger);
+            animation: shake 0.5s;
+        }
+
+        .card.matched {
+            background-color: var(--success);
+            color: white;
+            border-color: var(--success);
+            transform: scale(0);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-10px) rotate(-5deg); }
+            40% { transform: translateX(10px) rotate(5deg); }
+            60% { transform: translateX(-10px) rotate(-5deg); }
+            80% { transform: translateX(10px) rotate(5deg); }
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(5px);
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 40px;
+            border-radius: 24px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            max-width: 90%;
+            width: 400px;
+            animation: popIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .modal h2 { font-size: 28px; margin-top: 0; }
+        .modal p { font-size: 18px; color: #6B7280; margin-bottom: 25px; }
+
+        button {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: 0 6px 20px rgba(139, 92, 246, 0.6);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="game-header">
+        <h2>✨ 字音连连看 ✨</h2>
+        <div class="stats">
+            <div class="score-box">🌟 分数: <span id="scoreDisplay">0</span></div>
+            <div class="hearts-box" id="hpDisplay"></div>
+        </div>
+    </div>
+
+    <div class="board" id="gameBoard"></div>
+
+    <div class="modal" id="gameModal">
+        <div class="modal-content">
+            <h2 id="modalTitle">💔 哎呀，心心用完啦！</h2>
+            <p id="modalDesc">所有答错的字已加入重点复习库，我们再试一次吧！</p>
+            <button onclick="restartGame()">🚀 重新挑战</button>
+        </div>
+    </div>
+
+<script>
+    // 更新后的词库配置（扎的拼音已修改为zā）
+    const dictionaries = {
+        new: { "驴":"lǘ", "驮":"tuó", "袋":"dài", "猎":"liè", "躲":"duǒ", "怜":"lián", "捆":"kǔn", "扎":"zā", "逃":"táo", "退":"tuì", "良":"liáng", "压":"yā", "危":"wēi", "险":"xiǎn" },
+        review: { "度":"dù", "辆":"liàng", "推":"tuī", "托":"tuō", "免":"miǎn", "税":"shuì", "妆":"zhuāng", "杂":"zá", "示":"shì", "窗":"chuāng", "降":"jiàng", "距":"jù", "播":"bō", "乘":"chéng", "齐":"qí", "际":"jì", "达":"dá", "议":"yì", "零":"líng", "府":"fǔ", "权":"quán", "指":"zhǐ", "扬":"yáng", "迷":"mí", "侧":"cè", "栋":"dòng", "朴":"pǔ", "固":"gù", "派":"pài", "视":"shì", "标":"biāo", "租":"zū", "尤":"yóu", "建":"jiàn", "纪":"jì", "池":"chí", "瓶":"píng", "奈":"nài", "扔":"rēng", "升":"shēng" },
+        basic: { "在":"zài", "教":"jiào", "汉":"hàn", "语":"yǔ", "写":"xiě", "字":"zì", "读":"dú", "歌":"gē", "画":"huà", "喜":"xǐ", "欢":"huān", "室":"shì", "里":"lǐ", "书":"shū", "不":"bù", "那":"nà", "她":"tā", "笔":"bǐ", "本":"běn", "子":"zi", "讲":"jiǎng", "放":"fàng", "今":"jīn", "星":"xīng", "期":"qī", "告":"gào", "诉":"sù", "午":"wǔ", "朋":"péng", "友":"yǒu", "问":"wèn", "谁":"shuí", "听":"tīng", "心":"xīn" }
+    };
+
+    let mistakePool = new Set();
+    let unseenPools = { new: [], review: [], basic: [] };
+    
+    let currentScore = 0;
+    let maxHP = 5;
+    let currentHP = 5;
+    let selectedCards = [];
+    let matchedCount = 0;
+    let isLocked = false;
+
+    // 洗牌算法
+    function shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+    }
+
+    // 初始化未覆盖词汇池
+    function initUnseenPools() {
+        for (let cat in dictionaries) {
+            if (unseenPools[cat].length === 0) {
+                unseenPools[cat] = shuffleArray(Object.keys(dictionaries[cat]));
+            }
+        }
+    }
+
+    // 按规则、错题和未覆盖词汇抽取
+    function drawWords(category, count) {
+        let selected = [];
+        
+        // 1. 错题优先机制 (当前分类中的错题)
+        let allMistakes = Array.from(mistakePool).filter(w => dictionaries[category][w]);
+        allMistakes = shuffleArray(allMistakes);
+
+        while (selected.length < count && allMistakes.length > 0) {
+            let w = allMistakes.pop();
+            selected.push(w);
+            mistakePool.delete(w); // 抽出后暂时移除，答错再加回
+            
+            // 从unseen中也剔除，避免重复抽到
+            unseenPools[category] = unseenPools[category].filter(word => word !== w);
+        }
+
+        // 2. 保证覆盖所有字的机制
+        while (selected.length < count) {
+            if (unseenPools[category].length === 0) {
+                // 如果当前词库全抽过了，重新洗牌填满 (剔除本轮已抽的字)
+                let all = Object.keys(dictionaries[category]);
+                unseenPools[category] = shuffleArray(all.filter(w => !selected.includes(w)));
+            }
+            let w = unseenPools[category].pop();
+            if (!selected.includes(w)) {
+                selected.push(w);
+            }
+        }
+
+        return selected.map(word => ({ hanzi: word, pinyin: dictionaries[category][word] }));
+    }
+
+    // 生成当前牌库 (每页: New*3, Review*2, Basic*3)
+    function generateDeck() {
+        initUnseenPools();
+        
+        const wordPairs = [
+            ...drawWords('new', 3),
+            ...drawWords('review', 2),
+            ...drawWords('basic', 3)
+        ];
+
+        let deck = [];
+        wordPairs.forEach(pair => {
+            deck.push({ display: pair.hanzi, matchKey: pair.hanzi });
+            deck.push({ display: pair.pinyin, matchKey: pair.hanzi });
+        });
+
+        return shuffleArray(deck);
+    }
+
+    // 初始化游戏界面
+    function initGame() {
+        const board = document.getElementById('gameBoard');
+        board.innerHTML = '';
+        matchedCount = 0;
+        selectedCards = [];
+        isLocked = false;
+        
+        updateStats();
+
+        const deck = generateDeck();
+        
+        deck.forEach((cardData) => {
+            const cardEl = document.createElement('div');
+            cardEl.className = 'card';
+            cardEl.dataset.key = cardData.matchKey;
+            cardEl.innerText = cardData.display;
+            
+            cardEl.addEventListener('click', () => handleCardClick(cardEl, cardData));
+            board.appendChild(cardEl);
+        });
+    }
+
+    // 处理卡片点击逻辑
+    function handleCardClick(cardEl, cardData) {
+        if (isLocked || cardEl.classList.contains('matched')) return;
+
+        // 取消选中
+        if (selectedCards.length === 1 && selectedCards[0].element === cardEl) {
+            cardEl.classList.remove('selected');
+            selectedCards = [];
+            return;
+        }
+
+        cardEl.classList.add('selected');
+        selectedCards.push({ element: cardEl, data: cardData });
+
+        if (selectedCards.length === 2) {
+            checkMatch();
+        }
+    }
+
+    // 检查是否配对
+    function checkMatch() {
+        const [card1, card2] = selectedCards;
+        const isMatch = card1.data.matchKey === card2.data.matchKey;
+
+        if (isMatch) {
+            // 匹配成功：立即消除并加分
+            card1.element.classList.remove('selected');
+            card2.element.classList.remove('selected');
+            card1.element.classList.add('matched');
+            card2.element.classList.add('matched');
+            
+            currentScore += 10;
+            matchedCount++;
+            updateStats();
+            resetTurn();
+
+            if (matchedCount === 8) { // 3+2+3 = 8对
+                isLocked = true;
+                setTimeout(() => {
+                    currentHP = maxHP; // 满血进入下一轮
+                    initGame();
+                }, 400); 
+            }
+        } else {
+            // 匹配失败：锁定界面，震动标红扣血
+            isLocked = true;
+            card1.element.classList.add('error');
+            card2.element.classList.add('error');
+            
+            setTimeout(() => {
+                card1.element.classList.remove('selected', 'error');
+                card2.element.classList.remove('selected', 'error');
+                
+                currentHP -= 1;
+                
+                // 加入错题本
+                mistakePool.add(card1.data.matchKey);
+                mistakePool.add(card2.data.matchKey);
+                
+                updateStats();
+                resetTurn();
+
+                if (currentHP <= 0) {
+                    document.getElementById('gameModal').style.display = 'flex';
+                }
+            }, 800);
+        }
+    }
+
+    function resetTurn() {
+        selectedCards = [];
+        isLocked = false;
+    }
+
+    // 更新分数和爱心UI
+    function updateStats() {
+        document.getElementById('scoreDisplay').innerText = currentScore;
+        
+        let heartsHtml = '';
+        for(let i = 0; i < maxHP; i++) {
+            if (i < currentHP) {
+                heartsHtml += '<span class="heart active">❤️</span>';
+            } else {
+                heartsHtml += '<span class="heart lost">🖤</span>';
+            }
+        }
+        document.getElementById('hpDisplay').innerHTML = heartsHtml;
+    }
+
+    // 血量耗尽，重新开始游戏
+    function restartGame() {
+        document.getElementById('gameModal').style.display = 'none';
+        currentScore = 0; 
+        currentHP = maxHP; 
+        initGame();
+    }
+
+    // 启动游戏
+    initGame();
+</script>
+</body>
+</html>
